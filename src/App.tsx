@@ -178,6 +178,19 @@ export default function App() {
     saveUsers(updatedUsers);
   };
 
+  // 7. Update Password (Forgot Password)
+  const handleUpdatePassword = (email: string, newPassword: string): boolean => {
+    const userExists = users.some(u => u.email.toLowerCase() === email.toLowerCase() || u.id.toLowerCase() === email.toLowerCase());
+    if (!userExists) return false;
+    const updatedUsers = users.map(u => 
+      (u.email.toLowerCase() === email.toLowerCase() || u.id.toLowerCase() === email.toLowerCase())
+        ? { ...u, password: newPassword }
+        : u
+    );
+    saveUsers(updatedUsers);
+    return true;
+  };
+
   // System Reset (For testing and restore initial dataset)
   const handleResetSystem = () => {
     if (window.confirm('Sigurado ka bang nais mong i-reset ang Online Shopping sa default na data? Mabubura ang lahat ng ginawang pagbabago.')) {
@@ -220,6 +233,7 @@ export default function App() {
           users={users}
           onLoginSuccess={handleLoginSuccess}
           onRegister={handleRegister}
+          onUpdatePassword={handleUpdatePassword}
         />
       ) : currentUser.role === 'admin' ? (
         <AdminDashboard

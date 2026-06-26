@@ -20,7 +20,10 @@ import {
   ChevronRight,
   Sparkles,
   Home,
-  Check
+  Check,
+  Truck,
+  Package,
+  XCircle
 } from 'lucide-react';
 
 interface UserDashboardProps {
@@ -65,6 +68,27 @@ export default function UserDashboard({
 
   // Categories
   const categories = ['All', 'Gadgets & Tech', 'Apparel & Fashion', 'Home & Living', 'Cosmetics & Beauty'];
+
+  // Delivery helpers
+  const getExpectedDeliveryDate = (orderDateStr: string) => {
+    const d = new Date(orderDateStr);
+    d.setDate(d.getDate() + 3); // 3 days expected delivery
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getDeliveredDate = (orderDateStr: string) => {
+    const d = new Date(orderDateStr);
+    d.setDate(d.getDate() + 2); // 2 days actual delivery
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   // Filter products based on search and category
   const filteredProducts = useMemo(() => {
@@ -306,7 +330,7 @@ export default function UserDashboard({
                   </span>
                   <h2 className="text-2xl sm:text-3xl font-black mt-3 tracking-tight">Mag-order Ngayon, Libreng Hatid Bukas!</h2>
                   <p className="text-xs sm:text-sm text-indigo-100 mt-2">
-                    Tangkilikin ang pinakamahusay na karanasan sa pagbili ng mga gadget, damit, at kagamitan sa bahay dito sa Aura Bazaar.
+                    Tangkilikin ang pinakamahusay na karanasan sa pagbili ng mga gadget, damit, at kagamitan sa bahay dito sa Online Shopping.
                   </p>
                 </div>
                 <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-12 translate-y-6 pointer-events-none">
@@ -496,7 +520,7 @@ export default function UserDashboard({
             <div className="space-y-6 animate-fade-in">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900">Aking mga Order & Transactions</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Subaybayan ang katayuan ng inyong mga binili sa Aura Bazaar.</p>
+                <p className="text-xs text-slate-500 mt-0.5">Subaybayan ang katayuan ng inyong mga binili sa Online Shopping.</p>
               </div>
 
               {userOrders.length === 0 ? (
@@ -587,6 +611,141 @@ export default function UserDashboard({
                             </span>
                           </div>
                         ))}
+                      </div>
+
+                      {/* Order Tracking Timeline Section */}
+                      <div className="px-6 py-5 border-t border-slate-100 bg-slate-50/30">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Truck className="w-4 h-4 text-indigo-600 animate-pulse" />
+                          <h6 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                            Subaybayan ang Delivery (Order Tracking)
+                          </h6>
+                        </div>
+
+                        {/* Delivery Steps Timeline */}
+                        {order.status === 'Cancelled' ? (
+                          <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 flex items-start gap-3">
+                            <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-bold text-red-800">Kinansela ang Order</p>
+                              <p className="text-xs text-red-600/90 mt-1">
+                                Sori, ang order na ito ay hindi matutuloy dahil ito ay nakansela. Kung may katanungan, mangyaring makipag-ugnayan sa suporta ng Online Shopping.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Visual Timeline Stepper */}
+                            <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0 pt-2 pb-4">
+                              {/* Connector Lines (desktop only) */}
+                              <div className="hidden md:block absolute left-10 right-10 top-1/2 h-0.5 -translate-y-4 bg-slate-200 z-0">
+                                <div 
+                                  className="h-full bg-indigo-600 transition-all duration-500"
+                                  style={{
+                                    width: order.status === 'Delivered' ? '100%' : '50%'
+                                  }}
+                                />
+                              </div>
+
+                              {/* Step 1: Order Placed */}
+                              <div className="flex md:flex-col items-center gap-3 md:gap-2 text-left md:text-center flex-1 z-10">
+                                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs ring-4 ring-indigo-50 shrink-0">
+                                  <Check className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-900">Order Placed</p>
+                                  <p className="text-[10px] text-slate-500 font-medium">Naisumite na</p>
+                                </div>
+                              </div>
+
+                              {/* Step 2: Preparing */}
+                              <div className="flex md:flex-col items-center gap-3 md:gap-2 text-left md:text-center flex-1 z-10">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  order.status === 'Pending' || order.status === 'Delivered'
+                                    ? 'bg-indigo-600 text-white ring-4 ring-indigo-100'
+                                    : 'bg-slate-200 text-slate-500'
+                                }`}>
+                                  {order.status === 'Delivered' ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : (
+                                    <Package className="w-4 h-4" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-900">Inihahanda (Preparing)</p>
+                                  <p className="text-[10px] text-slate-500 font-medium">Sinisiyasat ang kalidad</p>
+                                </div>
+                              </div>
+
+                              {/* Step 3: Out for Delivery */}
+                              <div className="flex md:flex-col items-center gap-3 md:gap-2 text-left md:text-center flex-1 z-10">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  order.status === 'Delivered'
+                                    ? 'bg-indigo-600 text-white ring-4 ring-indigo-100'
+                                    : order.status === 'Pending'
+                                    ? 'bg-amber-500 text-white ring-4 ring-amber-100 animate-pulse'
+                                    : 'bg-slate-200 text-slate-500'
+                                }`}>
+                                  {order.status === 'Delivered' ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : (
+                                    <Truck className="w-4 h-4" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-900">I-biniyahe na (In Transit)</p>
+                                  <p className="text-[10px] text-slate-500 font-medium">Patungo sa iyong address</p>
+                                </div>
+                              </div>
+
+                              {/* Step 4: Delivered */}
+                              <div className="flex md:flex-col items-center gap-3 md:gap-2 text-left md:text-center flex-1 z-10">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  order.status === 'Delivered'
+                                    ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
+                                    : 'bg-slate-200 text-slate-500'
+                                }`}>
+                                  <CheckCircle className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-900 font-sans">Naihatid (Delivered)</p>
+                                  <p className="text-[10px] text-slate-500 font-medium">Nakarating nang ligtas</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Delivery details & dates information */}
+                            <div className="bg-white/80 rounded-xl p-4 border border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Inaasahang Petsa ng Paghahatid</span>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-indigo-500" />
+                                  <span className="text-sm font-bold text-indigo-700">
+                                    {getExpectedDeliveryDate(order.date)}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-500 block">Standard Delivery (3-day frame)</span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Estadistika ng Delivery</span>
+                                <div className="text-xs text-slate-600">
+                                  {order.status === 'Pending' ? (
+                                    <p className="flex items-center gap-1.5 font-medium text-amber-700">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                                      Kasalukuyang hinahanda para sa pickup ng courier.
+                                    </p>
+                                  ) : (
+                                    <p className="flex items-center gap-1.5 font-medium text-emerald-700">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      Matagumpay na naihatid noong {getDeliveredDate(order.date)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Summary & Shipping details */}
