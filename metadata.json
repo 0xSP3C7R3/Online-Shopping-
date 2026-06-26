@@ -1,0 +1,6 @@
+{
+  "name": "Online Store with Admin Dashboard",
+  "description": "An e-commerce platform with multi-role support (Admin and User), featuring user profiles, order tracking, product inventory management, and beautiful sales analysis graphs (daily, weekly, monthly, and yearly sales summaries).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
