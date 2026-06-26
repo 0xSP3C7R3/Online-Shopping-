@@ -354,7 +354,7 @@ export default function Login({ users, onLoginSuccess, onRegister }: LoginProps)
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={
-                      isAdminTab ? 'adminclark' : 'clarkjustin_algarme@smccnasipit.edu.ph'
+                      isAdminTab ? '' : 'clarkjustin_algarme@smccnasipit.edu.ph'
                     }
                     className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 text-sm transition"
                   />
@@ -376,7 +376,7 @@ export default function Login({ users, onLoginSuccess, onRegister }: LoginProps)
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder={isAdminTab ? '' : '••••••••'}
                     className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 text-sm transition"
                   />
                 </div>
@@ -409,51 +409,6 @@ export default function Login({ users, onLoginSuccess, onRegister }: LoginProps)
                 </div>
               )}
             </form>
-          )}
-
-          {/* QUICK LOGIN CONTROLS */}
-          {!isRegisterMode && (
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="px-2 bg-white text-slate-500 font-medium">
-                    Mabilisang Pag-login (Mabilis na Test)
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 gap-3">
-                {!isAdminTab ? (
-                  <button
-                    id="quick-login-user-btn"
-                    type="button"
-                    onClick={() => handleQuickLogin('user')}
-                    className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 border border-slate-200 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-sm font-medium text-indigo-700 transition"
-                  >
-                    <UserIcon className="w-4 h-4 text-indigo-600" />
-                    Mabilisang Login bilang Customer (Clark)
-                  </button>
-                ) : (
-                  <button
-                    id="quick-login-admin-btn"
-                    type="button"
-                    onClick={() => {
-                      // Pre-fill clark admin credentials for standard testing ease
-                      setEmail('adminclark');
-                      setPassword('admin@2026-2027');
-                      setSuccess('Naka-prefill na ang mga credentials ni Admin Clark! Click Mag-sign In.');
-                    }}
-                    className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 border border-slate-200 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-sm font-medium text-emerald-700 transition"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    I-prefill Credentials ni Admin Clark
-                  </button>
-                )}
-              </div>
-            </div>
           )}
         </div>
       </div>
