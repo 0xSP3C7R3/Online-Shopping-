@@ -45,6 +45,9 @@ interface AdminDashboardProps {
   currentUser: User;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
+  onDeleteOrder: (orderId: string) => void;
+  onResetOrders: () => void;
+  onResetSystem: () => void;
 }
 
 export default function AdminDashboard({
@@ -56,7 +59,10 @@ export default function AdminDashboard({
   onLogout,
   currentUser,
   onEditProduct,
-  onDeleteProduct
+  onDeleteProduct,
+  onDeleteOrder,
+  onResetOrders,
+  onResetSystem
 }: AdminDashboardProps) {
   // Navigation Tabs for Admin
   const [activeTab, setActiveTab] = useState<'summary' | 'orders' | 'inventory'>('summary');
@@ -91,6 +97,10 @@ export default function AdminDashboard({
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('All');
 
+  // Custom Date Range filter for Sales summary
+  const [dateFilterFrom, setDateFilterFrom] = useState('2026-06-01');
+  const [dateFilterTo, setDateFilterTo] = useState('2026-06-26');
+
   // Quick preset image selector for adding items
   const IMAGE_PRESETS = [
     { name: 'Gadgets', url: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=500&auto=format&fit=crop&q=80' },
@@ -98,6 +108,26 @@ export default function AdminDashboard({
     { name: 'Home/Furniture', url: 'https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=500&auto=format&fit=crop&q=80' },
     { name: 'Cosmetics', url: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&auto=format&fit=crop&q=80' }
   ];
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Masyadong malaki ang larawan! Mangyaring pumili ng larawan na mas mababa sa 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        if (isEdit) {
+          setEditProductImage(base64String);
+        } else {
+          setNewProductImage(base64String);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Helper date parsing (Local reference is 2026-06-26)
   const baseDate = useMemo(() => new Date('2026-06-26T12:00:00'), []);
@@ -158,6 +188,49 @@ export default function AdminDashboard({
       yearly: { amount: yearlyTotal, count: yearlyCount }
     };
   }, [orders, baseDate]);
+
+  // Compute Custom Date Range Sales Summary
+  const customRangeSummary = useMemo(() => {
+    const deliveredOrders = orders.filter(o => o.status === 'Delivered');
+    let totalIncome = 0;
+    let orderCount = 0;
+    const itemsSoldMap: { [key: string]: { name: string, qty: number, amount: number } } = {};
+
+    deliveredOrders.forEach(order => {
+      const orderDate = new Date(order.date);
+      // Format as YYYY-MM-DD
+      const year = orderDate.getFullYear();
+      const month = String(orderDate.getMonth() + 1).padStart(2, '0');
+      const day = String(orderDate.getDate()).padStart(2, '0');
+      const orderDateStr = `${year}-${month}-${day}`;
+
+      const matchesFrom = !dateFilterFrom || orderDateStr >= dateFilterFrom;
+      const matchesTo = !dateFilterTo || orderDateStr <= dateFilterTo;
+
+      if (matchesFrom && matchesTo) {
+        totalIncome += order.totalAmount;
+        orderCount += 1;
+        
+        order.items.forEach(item => {
+          if (!itemsSoldMap[item.productId]) {
+            itemsSoldMap[item.productId] = { name: item.name, qty: 0, amount: 0 };
+          }
+          itemsSoldMap[item.productId].qty += item.quantity;
+          itemsSoldMap[item.productId].amount += item.price * item.quantity;
+        });
+      }
+    });
+
+    const topSellingItems = Object.values(itemsSoldMap)
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 5);
+
+    return {
+      amount: totalIncome,
+      count: orderCount,
+      topSellingItems
+    };
+  }, [orders, dateFilterFrom, dateFilterTo]);
 
   // 2. CHART DATA DYNAMICS
   const chartData = useMemo(() => {
@@ -479,6 +552,149 @@ export default function AdminDashboard({
         {/* 1. SALES SUMMARY AND ANALYTICS TAB */}
         {activeTab === 'summary' && (
           <div className="space-y-8 animate-fade-in">
+            {/* Custom Date Range Filter & Sales Analysis Panel */}
+            <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 rounded-2xl shadow-md text-white border border-slate-800">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div>
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-indigo-400" />
+                    Suriin ang Benta ayon sa Petsa (Sales by Specific Date Range)
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-1">Pumili ng panimula at katapusang petsa para makita ang kabuuang kita at mga nabentang item.</p>
+                </div>
+
+                {/* Quick Date Shortcuts */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      setDateFilterFrom('2026-06-26');
+                      setDateFilterTo('2026-06-26');
+                    }}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-lg text-xs font-semibold transition"
+                  >
+                    Ngayong Araw (June 26)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDateFilterFrom('2026-06-20');
+                      setDateFilterTo('2026-06-26');
+                    }}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-lg text-xs font-semibold transition"
+                  >
+                    Huling 7 Araw
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDateFilterFrom('2026-06-01');
+                      setDateFilterTo('2026-06-26');
+                    }}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-lg text-xs font-semibold transition"
+                  >
+                    Hunyo 2026
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDateFilterFrom('');
+                      setDateFilterTo('');
+                    }}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-lg text-xs font-semibold transition text-indigo-300"
+                  >
+                    I-clear (Ipakita Lahat)
+                  </button>
+                </div>
+              </div>
+
+              {/* Date Inputs & Summary Dashboard Card */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-6 pt-6 border-t border-slate-800">
+                
+                {/* Date Selection Controls */}
+                <div className="md:col-span-4 space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Simulang Petsa (From Date)</label>
+                    <input
+                      type="date"
+                      value={dateFilterFrom}
+                      onChange={(e) => setDateFilterFrom(e.target.value)}
+                      className="w-full bg-slate-900/80 border border-slate-700 text-white text-sm font-semibold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Katapusang Petsa (To Date)</label>
+                    <input
+                      type="date"
+                      value={dateFilterTo}
+                      onChange={(e) => setDateFilterTo(e.target.value)}
+                      className="w-full bg-slate-900/80 border border-slate-700 text-white text-sm font-semibold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Filter range label indicator */}
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80">
+                    <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Kasalukuyang Saklaw (Selected Filter Range)</span>
+                    <span className="text-xs font-medium text-slate-300">
+                      {dateFilterFrom && dateFilterTo ? (
+                        <>Mula <span className="text-indigo-400 font-semibold">{dateFilterFrom}</span> hanggang <span className="text-indigo-400 font-semibold">{dateFilterTo}</span></>
+                      ) : dateFilterFrom ? (
+                        <>Mula <span className="text-indigo-400 font-semibold">{dateFilterFrom}</span> hanggang sa kasalukuyan</>
+                      ) : dateFilterTo ? (
+                        <>Hanggang sa <span className="text-indigo-400 font-semibold">{dateFilterTo}</span></>
+                      ) : (
+                        <span className="text-amber-400 font-semibold">Ipinapakita ang lahat ng petsa (All-time data)</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Filter Output Box */}
+                <div className="md:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Performance Statistics Card */}
+                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] text-indigo-400 uppercase font-bold tracking-wider">Kabuuang Kita sa Saklaw na Ito</span>
+                      <h4 className="text-3xl font-extrabold text-white mt-1">₱{customRangeSummary.amount.toLocaleString()}</h4>
+                      <p className="text-xs text-slate-400 mt-2 font-medium">
+                        Mayroong <span className="text-indigo-400 font-bold">{customRangeSummary.count} order</span> ang matagumpay na naihatid.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-900 flex justify-between items-center">
+                      <span className="text-[11px] text-slate-500">Katayuan: Delivered Only</span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Active
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Top Items Sold in Range Card */}
+                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] text-indigo-400 uppercase font-bold tracking-wider">Pinakabentang Produkto sa Saklaw na Ito</span>
+                      
+                      {customRangeSummary.topSellingItems.length > 0 ? (
+                        <div className="space-y-2.5 mt-3">
+                          {customRangeSummary.topSellingItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs">
+                              <span className="text-slate-300 truncate max-w-[150px] font-medium">
+                                {idx + 1}. {item.name}
+                              </span>
+                              <span className="text-slate-400 font-semibold text-[11px]">
+                                {item.qty} pcs <span className="text-indigo-400">(₱{item.amount.toLocaleString()})</span>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="h-full flex items-center justify-center py-6 text-xs text-slate-500 italic">
+                          Walang benta sa napiling saklaw ng petsa.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Daily Sales Card */}
@@ -534,6 +750,48 @@ export default function AdminDashboard({
                 </div>
                 <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
                   <DollarSign className="w-6 h-6" />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Settings & Reset Actions Card */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-indigo-600" />
+                    Mga Espesyal na Aksyon & Controls (Quick Settings)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Pamahalaan ang pag-reset ng benta, mga order, at system data sa isang click.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  {/* Reset Income / Orders */}
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Sigurado ka bang nais mong i-reset ang lahat ng benta/kita at burahin ang lahat ng order? Babalik sa ₱0 ang iyong total money.')) {
+                        onResetOrders();
+                        alert('Matagumpay na na-reset ang benta at orders pabalik sa 0!');
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition shadow-2xs border border-rose-100"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    I-reset ang Kita at mga Order (Back to 0)
+                  </button>
+
+                  {/* Reset Entire System */}
+                  <button
+                    onClick={() => {
+                      if (window.confirm('WARNING: Sigurado ka bang nais mong i-reset ang buong system? Babalik sa default na data ang mga produkto at mabubura ang lahat ng transaction.')) {
+                        onResetSystem();
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition shadow-2xs border border-slate-200"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    I-reset ang Buong System
+                  </button>
                 </div>
               </div>
             </div>
@@ -842,6 +1100,17 @@ export default function AdminDashboard({
                                   Tapos na {order.status === 'Delivered' ? '(Naihatid)' : '(I-kinansela)'}
                                 </span>
                               )}
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Sigurado ka bang nais mong burahin ang order na ${order.id}?`)) {
+                                    onDeleteOrder(order.id);
+                                  }
+                                }}
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shrink-0"
+                                title="Burahin ang Order na ito"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1083,6 +1352,33 @@ export default function AdminDashboard({
                   </div>
                 </div>
 
+                <div className="bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200">
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    📁 O Mag-upload ng Sariling Larawan (Upload Image)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, false)}
+                      className="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer w-full"
+                    />
+                    {newProductImage && (
+                      <div className="shrink-0 relative">
+                        <img src={newProductImage} alt="Preview" className="w-10 h-10 object-cover rounded-lg border border-slate-200" />
+                        <button
+                          type="button"
+                          onClick={() => setNewProductImage('')}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center shadow-sm font-bold hover:bg-red-600"
+                          title="Tanggalin"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Quick preset images */}
                 <div>
                   <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
@@ -1239,6 +1535,33 @@ export default function AdminDashboard({
                       placeholder="Opsyonal (o mamili sa ibaba)"
                       className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200">
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    📁 O Mag-upload ng Sariling Larawan (Upload Image)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, true)}
+                      className="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer w-full"
+                    />
+                    {editProductImage && (
+                      <div className="shrink-0 relative">
+                        <img src={editProductImage} alt="Preview" className="w-10 h-10 object-cover rounded-lg border border-slate-200" />
+                        <button
+                          type="button"
+                          onClick={() => setEditProductImage('')}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center shadow-sm font-bold hover:bg-red-600"
+                          title="Tanggalin"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 

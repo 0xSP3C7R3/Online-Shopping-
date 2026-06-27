@@ -124,6 +124,15 @@ export default function App() {
     saveOrders(updated);
   };
 
+  const handleDeleteOrder = (orderId: string) => {
+    const updated = orders.filter(o => o.id !== orderId);
+    saveOrders(updated);
+  };
+
+  const handleResetOrders = () => {
+    saveOrders([]);
+  };
+
   // 4. User Place Order (reduces stock, registers order)
   const handlePlaceOrder = (items: OrderItem[], paymentMethod: string) => {
     if (!currentUser) return;
@@ -246,6 +255,9 @@ export default function App() {
           currentUser={currentUser}
           onEditProduct={handleEditProduct}
           onDeleteProduct={handleDeleteProduct}
+          onDeleteOrder={handleDeleteOrder}
+          onResetOrders={handleResetOrders}
+          onResetSystem={handleResetSystem}
         />
       ) : (
         <UserDashboard
