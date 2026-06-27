@@ -792,59 +792,6 @@ export default function AdminDashboard({
               </div>
             </div>
 
-            {/* Quick Settings & Reset Actions Card */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 text-indigo-600" />
-                    Mga Espesyal na Aksyon & Controls (Quick Settings)
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Pamahalaan ang pag-reset ng benta, mga order, at system data sa isang click.</p>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  {/* Reset Income / Orders */}
-                  <button
-                    onClick={() => {
-                      requestConfirmation(
-                        'I-reset ang Kita at mga Order',
-                        'Sigurado ka bang nais mong i-reset ang lahat ng benta/kita at burahin ang lahat ng order? Babalik sa ₱0 ang iyong kabuuang benta.',
-                        () => {
-                          onResetOrders();
-                        },
-                        true,
-                        'Oo, I-reset Lahat',
-                        'Kanselahin'
-                      );
-                    }}
-                    className="flex items-center gap-1.5 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition shadow-2xs border border-rose-100"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    I-reset ang Kita at mga Order (Back to 0)
-                  </button>
-
-                  {/* Reset Entire System */}
-                  <button
-                    onClick={() => {
-                      requestConfirmation(
-                        'I-reset ang Buong System',
-                        'BABALA: Sigurado ka bang nais mong i-reset ang buong system? Babalik sa default na data ang mga produkto at mabubura ang lahat ng transaction.',
-                        () => onResetSystem(),
-                        true,
-                        'Oo, I-reset ang System',
-                        'Kanselahin'
-                      );
-                    }}
-                    className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition shadow-2xs border border-slate-200"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    I-reset ang Buong System
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Sales Chart Section */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">

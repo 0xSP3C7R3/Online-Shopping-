@@ -28,11 +28,17 @@ export default function App() {
         localStorage.setItem('aura_bazaar_products', JSON.stringify(INITIAL_PRODUCTS));
       }
 
-      if (storedOrders) {
+      // Force clear initial mock orders once so they start at 0
+      const hasWipedMockOrders = localStorage.getItem('aura_bazaar_wiped_mock_orders_v2');
+      if (!hasWipedMockOrders) {
+        localStorage.setItem('aura_bazaar_orders', JSON.stringify([]));
+        localStorage.setItem('aura_bazaar_wiped_mock_orders_v2', 'true');
+        setOrders([]);
+      } else if (storedOrders) {
         setOrders(JSON.parse(storedOrders));
       } else {
-        setOrders(INITIAL_ORDERS);
-        localStorage.setItem('aura_bazaar_orders', JSON.stringify(INITIAL_ORDERS));
+        setOrders([]);
+        localStorage.setItem('aura_bazaar_orders', JSON.stringify([]));
       }
 
       if (storedUsers) {
