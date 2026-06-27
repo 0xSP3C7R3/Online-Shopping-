@@ -5,6 +5,20 @@ import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
 import { RefreshCw } from 'lucide-react';
+import {
+  seedDatabaseIfEmpty,
+  subscribeToProducts,
+  subscribeToOrders,
+  subscribeToUsers,
+  saveProductToFirestore,
+  deleteProductFromFirestore,
+  saveOrderToFirestore,
+  updateOrderStatusInFirestore,
+  deleteOrderFromFirestore,
+  saveUserToFirestore,
+  resetOrdersInFirestore,
+  resetSystemInFirestore
+} from './firebase';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -13,79 +27,71 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize state from LocalStorage on mount
+  // Initialize state from LocalStorage & Firebase on mount
   useEffect(() => {
+    // 1. Initial load from LocalStorage for immediate UI paint
     try {
       const storedProducts = localStorage.getItem('aura_bazaar_products');
       const storedOrders = localStorage.getItem('aura_bazaar_orders');
       const storedUsers = localStorage.getItem('aura_bazaar_users');
       const storedSession = localStorage.getItem('aura_bazaar_active_session');
 
-      if (storedProducts) {
-        setProducts(JSON.parse(storedProducts));
-      } else {
-        setProducts(INITIAL_PRODUCTS);
-        localStorage.setItem('aura_bazaar_products', JSON.stringify(INITIAL_PRODUCTS));
-      }
-
-      // Force clear initial mock orders once so they start at 0
-      const hasWipedMockOrders = localStorage.getItem('aura_bazaar_wiped_mock_orders_v2');
-      if (!hasWipedMockOrders) {
-        localStorage.setItem('aura_bazaar_orders', JSON.stringify([]));
-        localStorage.setItem('aura_bazaar_wiped_mock_orders_v2', 'true');
-        setOrders([]);
-      } else if (storedOrders) {
-        setOrders(JSON.parse(storedOrders));
-      } else {
-        setOrders([]);
-        localStorage.setItem('aura_bazaar_orders', JSON.stringify([]));
-      }
-
-      if (storedUsers) {
-        const parsedUsers = JSON.parse(storedUsers);
-        const hasAdminClark = parsedUsers.some((u: User) => u.id === 'adminclark');
-        if (!hasAdminClark) {
-          const adminUser = DEFAULT_USERS.find((u: User) => u.id === 'adminclark');
-          const updatedUsers = adminUser ? [...parsedUsers, adminUser] : parsedUsers;
-          setUsers(updatedUsers);
-          localStorage.setItem('aura_bazaar_users', JSON.stringify(updatedUsers));
-        } else {
-          setUsers(parsedUsers);
-        }
-      } else {
-        setUsers(DEFAULT_USERS);
-        localStorage.setItem('aura_bazaar_users', JSON.stringify(DEFAULT_USERS));
-      }
-
-      if (storedSession) {
-        setCurrentUser(JSON.parse(storedSession));
-      }
+      if (storedProducts) setProducts(JSON.parse(storedProducts));
+      if (storedOrders) setOrders(JSON.parse(storedOrders));
+      if (storedUsers) setUsers(JSON.parse(storedUsers));
+      if (storedSession) setCurrentUser(JSON.parse(storedSession));
     } catch (e) {
-      console.error('Error initializing state from localStorage', e);
-      // Fallback
-      setProducts(INITIAL_PRODUCTS);
-      setOrders(INITIAL_ORDERS);
-      setUsers(DEFAULT_USERS);
-    } finally {
+      console.error('Error loading initial cache:', e);
+    }
+
+    // 2. Setup Firebase real-time subscriptions and seeding
+    let isSubscribed = true;
+    let unsubProducts: (() => void) | undefined;
+    let unsubOrders: (() => void) | undefined;
+    let unsubUsers: (() => void) | undefined;
+
+    async function initFirebase() {
+      // Seed default items if empty
+      await seedDatabaseIfEmpty(INITIAL_PRODUCTS, DEFAULT_USERS);
+
+      if (!isSubscribed) return;
+
+      // Subscribe to Products
+      unsubProducts = subscribeToProducts((fbProducts) => {
+        if (fbProducts.length > 0) {
+          setProducts(fbProducts);
+          localStorage.setItem('aura_bazaar_products', JSON.stringify(fbProducts));
+        } else {
+          setProducts(INITIAL_PRODUCTS);
+        }
+      });
+
+      // Subscribe to Orders
+      unsubOrders = subscribeToOrders((fbOrders) => {
+        setOrders(fbOrders);
+        localStorage.setItem('aura_bazaar_orders', JSON.stringify(fbOrders));
+      });
+
+      // Subscribe to Users
+      unsubUsers = subscribeToUsers((fbUsers) => {
+        if (fbUsers.length > 0) {
+          setUsers(fbUsers);
+          localStorage.setItem('aura_bazaar_users', JSON.stringify(fbUsers));
+        }
+      });
+
       setIsLoading(false);
     }
+
+    initFirebase();
+
+    return () => {
+      isSubscribed = false;
+      if (unsubProducts) unsubProducts();
+      if (unsubOrders) unsubOrders();
+      if (unsubUsers) unsubUsers();
+    };
   }, []);
-
-  // Sync helpers
-  const saveProducts = (updatedProducts: Product[]) => {
-    setProducts(updatedProducts);
-    localStorage.setItem('aura_bazaar_products', JSON.stringify(updatedProducts));
-  };
-
-  const saveOrders = (updatedOrders: Order[]) => {
-    setOrders(updatedOrders);
-    localStorage.setItem('aura_bazaar_orders', JSON.stringify(updatedOrders));
-  };
-
-  const saveUsers = (updatedUsers: User[]) => {
-    setUsers(updatedUsers);
-    localStorage.setItem('aura_bazaar_users', JSON.stringify(updatedUsers));
-  };
 
   // Auth Handlers
   const handleLoginSuccess = (user: User) => {
@@ -102,56 +108,52 @@ export default function App() {
   const handleAddProduct = (newProduct: Omit<Product, 'id'>) => {
     const id = `p-${Date.now()}`;
     const productWithId: Product = { ...newProduct, id };
-    const updated = [productWithId, ...products];
-    saveProducts(updated);
+    saveProductToFirestore(productWithId);
   };
 
   // 2. Admin Update Stock
   const handleUpdateStock = (productId: string, newStock: number) => {
-    const updated = products.map(p => (p.id === productId ? { ...p, stock: Math.max(0, newStock) } : p));
-    saveProducts(updated);
+    const p = products.find(prod => prod.id === productId);
+    if (p) {
+      saveProductToFirestore({ ...p, stock: Math.max(0, newStock) });
+    }
   };
 
   // Admin Edit Product
   const handleEditProduct = (updatedProduct: Product) => {
-    const updated = products.map(p => (p.id === updatedProduct.id ? updatedProduct : p));
-    saveProducts(updated);
+    saveProductToFirestore(updatedProduct);
   };
 
   // Admin Delete Product
   const handleDeleteProduct = (productId: string) => {
-    const updated = products.filter(p => p.id !== productId);
-    saveProducts(updated);
+    deleteProductFromFirestore(productId);
   };
 
   // 3. Admin Update Order Status (Pending -> Delivered / Cancelled)
   const handleUpdateOrderStatus = (orderId: string, status: 'Pending' | 'Delivered' | 'Cancelled') => {
-    const updated = orders.map(o => (o.id === orderId ? { ...o, status } : o));
-    saveOrders(updated);
+    updateOrderStatusInFirestore(orderId, status);
   };
 
   const handleDeleteOrder = (orderId: string) => {
-    const updated = orders.filter(o => o.id !== orderId);
-    saveOrders(updated);
+    deleteOrderFromFirestore(orderId);
   };
 
   const handleResetOrders = () => {
-    saveOrders([]);
+    resetOrdersInFirestore();
   };
 
   // 4. User Place Order (reduces stock, registers order)
   const handlePlaceOrder = (items: OrderItem[], paymentMethod: string) => {
     if (!currentUser) return;
 
-    // Reduce product stocks
-    const updatedProducts = products.map(p => {
-      const purchasedItem = items.find(item => item.productId === p.id);
-      if (purchasedItem) {
-        return { ...p, stock: Math.max(0, p.stock - purchasedItem.quantity) };
+    // Reduce product stocks in Firestore
+    items.forEach(item => {
+      const p = products.find(prod => prod.id === item.productId);
+      if (p) {
+        const updatedProduct = { ...p, stock: Math.max(0, p.stock - item.quantity) };
+        saveProductToFirestore(updatedProduct);
       }
-      return p;
     });
-    saveProducts(updatedProducts);
 
     // Calculate total amount
     const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -168,8 +170,7 @@ export default function App() {
       paymentMethod
     };
 
-    const updatedOrders = [newOrder, ...orders];
-    saveOrders(updatedOrders);
+    saveOrderToFirestore(newOrder);
   };
 
   // 5. User Update Profile
@@ -178,31 +179,21 @@ export default function App() {
     setCurrentUser(updatedProfile);
     localStorage.setItem('aura_bazaar_active_session', JSON.stringify(updatedProfile));
 
-    // Update global users list
-    const updatedUsers = users.map(u => (u.id === updatedProfile.id ? updatedProfile : u));
-    saveUsers(updatedUsers);
-
-    // Also update order history userName matching if changed
-    const updatedOrders = orders.map(o => (o.userId === updatedProfile.id ? { ...o, userName: updatedProfile.name } : o));
-    saveOrders(updatedOrders);
+    // Save to Firestore
+    saveUserToFirestore(updatedProfile);
   };
 
   // 6. Register User
   const handleRegister = (newUser: User) => {
-    const updatedUsers = [...users, newUser];
-    saveUsers(updatedUsers);
+    saveUserToFirestore(newUser);
   };
 
   // 7. Update Password (Forgot Password)
   const handleUpdatePassword = (email: string, newPassword: string): boolean => {
-    const userExists = users.some(u => u.email.toLowerCase() === email.toLowerCase() || u.id.toLowerCase() === email.toLowerCase());
-    if (!userExists) return false;
-    const updatedUsers = users.map(u => 
-      (u.email.toLowerCase() === email.toLowerCase() || u.id.toLowerCase() === email.toLowerCase())
-        ? { ...u, password: newPassword }
-        : u
-    );
-    saveUsers(updatedUsers);
+    const matchedUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() || u.id.toLowerCase() === email.toLowerCase());
+    if (!matchedUser) return false;
+    const updatedUser = { ...matchedUser, password: newPassword };
+    saveUserToFirestore(updatedUser);
     return true;
   };
 
@@ -213,10 +204,8 @@ export default function App() {
       localStorage.removeItem('aura_bazaar_orders');
       localStorage.removeItem('aura_bazaar_users');
       localStorage.removeItem('aura_bazaar_active_session');
-      setProducts(INITIAL_PRODUCTS);
-      setOrders(INITIAL_ORDERS);
-      setUsers(DEFAULT_USERS);
       setCurrentUser(null);
+      resetSystemInFirestore(INITIAL_PRODUCTS, DEFAULT_USERS);
       alert('Matagumpay na nai-reset ang system!');
     }
   };
