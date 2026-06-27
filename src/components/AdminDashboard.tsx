@@ -101,6 +101,39 @@ export default function AdminDashboard({
   const [dateFilterFrom, setDateFilterFrom] = useState('2026-06-01');
   const [dateFilterTo, setDateFilterTo] = useState('2026-06-26');
 
+  // Custom Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    isDanger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const requestConfirmation = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    isDanger = true,
+    confirmText = 'Sigurado ako',
+    cancelText = 'Kanselahin'
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      isDanger,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmDialog(null);
+      }
+    });
+  };
+
   // Quick preset image selector for adding items
   const IMAGE_PRESETS = [
     { name: 'Gadgets', url: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=500&auto=format&fit=crop&q=80' },
@@ -423,9 +456,14 @@ export default function AdminDashboard({
   };
 
   const handleDeleteProductClick = (productId: string, productName: string) => {
-    if (window.confirm(`Sigurado ka bang nais mong burahin ang produktong "${productName}"?`)) {
-      onDeleteProduct(productId);
-    }
+    requestConfirmation(
+      'Burahin ang Produkto',
+      `Sigurado ka bang nais mong burahin ang produktong "${productName}"? Hindi na ito mababawi sa system at mawawala sa listahan ng mamimili.`,
+      () => onDeleteProduct(productId),
+      true,
+      'Oo, Burahin',
+      'Huwag Muna'
+    );
   };
 
   // Filter Products for Inventory
@@ -769,10 +807,16 @@ export default function AdminDashboard({
                   {/* Reset Income / Orders */}
                   <button
                     onClick={() => {
-                      if (window.confirm('Sigurado ka bang nais mong i-reset ang lahat ng benta/kita at burahin ang lahat ng order? Babalik sa ₱0 ang iyong total money.')) {
-                        onResetOrders();
-                        alert('Matagumpay na na-reset ang benta at orders pabalik sa 0!');
-                      }
+                      requestConfirmation(
+                        'I-reset ang Kita at mga Order',
+                        'Sigurado ka bang nais mong i-reset ang lahat ng benta/kita at burahin ang lahat ng order? Babalik sa ₱0 ang iyong kabuuang benta.',
+                        () => {
+                          onResetOrders();
+                        },
+                        true,
+                        'Oo, I-reset Lahat',
+                        'Kanselahin'
+                      );
                     }}
                     className="flex items-center gap-1.5 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition shadow-2xs border border-rose-100"
                   >
@@ -783,9 +827,14 @@ export default function AdminDashboard({
                   {/* Reset Entire System */}
                   <button
                     onClick={() => {
-                      if (window.confirm('WARNING: Sigurado ka bang nais mong i-reset ang buong system? Babalik sa default na data ang mga produkto at mabubura ang lahat ng transaction.')) {
-                        onResetSystem();
-                      }
+                      requestConfirmation(
+                        'I-reset ang Buong System',
+                        'BABALA: Sigurado ka bang nais mong i-reset ang buong system? Babalik sa default na data ang mga produkto at mabubura ang lahat ng transaction.',
+                        () => onResetSystem(),
+                        true,
+                        'Oo, I-reset ang System',
+                        'Kanselahin'
+                      );
                     }}
                     className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition shadow-2xs border border-slate-200"
                   >
@@ -1102,9 +1151,14 @@ export default function AdminDashboard({
                               )}
                               <button
                                 onClick={() => {
-                                  if (window.confirm(`Sigurado ka bang nais mong burahin ang order na ${order.id}?`)) {
-                                    onDeleteOrder(order.id);
-                                  }
+                                  requestConfirmation(
+                                    'Burahin ang Order',
+                                    `Sigurado ka bang nais mong burahin ang order na ${order.id}? Hindi na ito makikita sa listahan ng transaksyon.`,
+                                    () => onDeleteOrder(order.id),
+                                    true,
+                                    'Oo, Burahin',
+                                    'Huwag Muna'
+                                  );
                                 }}
                                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shrink-0"
                                 title="Burahin ang Order na ito"
@@ -1619,6 +1673,44 @@ export default function AdminDashboard({
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Confirmation Dialog Modal */}
+        {confirmDialog?.isOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-100 animate-slide-up p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className={`p-2.5 rounded-xl shrink-0 ${confirmDialog.isDanger ? 'bg-red-50 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-slate-900">{confirmDialog.title}</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">{confirmDialog.message}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDialog(null)}
+                  className="px-4 py-2 text-xs font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition"
+                >
+                  {confirmDialog.cancelText || 'Kanselahin'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    confirmDialog.onConfirm();
+                  }}
+                  className={`px-4 py-2 text-xs font-bold text-white rounded-xl shadow-xs transition ${
+                    confirmDialog.isDanger ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+                >
+                  {confirmDialog.confirmText || 'Kumpirmahin'}
+                </button>
+              </div>
             </div>
           </div>
         )}
